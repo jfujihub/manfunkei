@@ -13,6 +13,8 @@
 typedef struct {
 	GtkWidget *window;
 	GtkWidget *entry;
+	GtkWidget *drawing_area;
+	GdkPixmap *pixmap;
 	double min; /* 計時する時間[分] */
 	time_t start_time; /* タイマー開始時のエポック秒 */
 	time_t last_time; /* 秒針を書き換えた最後のエポック秒 */
@@ -23,6 +25,37 @@ void destroy(GtkWidget *widget, gpointer data)
 /* 終了処理 */
 {
 	gtk_main_quit();
+}
+
+
+gint configure_event(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
+/* ウインドウがリサイズされたときの処理 */
+{
+	COMMON_DATA *common_data = (COMMON_DATA *) data;
+
+	/* pixmap を解放する */
+	if (common_data->pixmap) {
+		gdk_pixmap_unref(common_data->pixmap);
+	}
+
+	/* ウインドウのサイズに合わせて新たな pixmap を確保する */
+	common_data->pixmap = gdk_pixmap_new(widget->window, widget->allocation.width, widget->allocation.height, -1);
+
+	return TRUE;
+}
+
+
+gint expose_event(GtkWidget *widget, GdkEventExpose *event, gpointer data)
+/* ウインドウが前面に出たときの処理 */
+{
+	COMMON_DATA *common_data = (COMMON_DATA *) data;
+
+	/* pixmap をウインドウにコピー */
+	gdk_draw_pixmap(widget->window, widget->style->fg_gc[GTK_WIDGET_STATE(widget)], common_data->pixmap,
+		event->area.x, event->area.y, event->area.x, event->area.y,
+		event->area.width, event->area.height);
+
+	return FALSE;
 }
 
 
@@ -60,22 +93,24 @@ void draw_tic(cairo_t *cr, int hour, double size_circle, int fill)
 }
 
 
-static gint main_timer_event(gpointer data)
+gint main_timer_event(gpointer data)
 /* タイマーイベント発生時の処理を行う */
 {
 	char str[SIZE_STR];
 	double hand_radian, hand_x, hand_y;
 	time_t epoch_time;
 	COMMON_DATA *common_data = (COMMON_DATA *) data;
-	GdkWindow *drawable = common_data->window->window;
 	cairo_t *cr;
+	GdkRectangle update_rect; /* expose イベントによって更新される範囲 */
 
+	/* 前回の画面更新より 1 秒経っていないときは何もせずに関数を抜ける */
 	if (common_data->last_time == time(NULL)) {
 		return TRUE;
 	}
 	common_data->last_time = time(NULL);
 
-	cr = gdk_cairo_create(drawable);
+	/* cairo を使って pixmap に描画する準備 */
+	cr = gdk_cairo_create(common_data->pixmap);
 
 	/* 画面消去 */
 	cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
@@ -113,9 +148,18 @@ static gint main_timer_event(gpointer data)
 	cairo_line_to(cr, hand_x, hand_y);
 	cairo_stroke(cr);
 
-	/* 描画終了 */
+	/* pixmap への描画終了 */
 	cairo_destroy(cr);
 
+	/* 更新する画面範囲を矩形で設定する */
+	update_rect.x = 0;
+	update_rect.y = 0;
+	update_rect.width = common_data->drawing_area->allocation.width;
+	update_rect.height = common_data->drawing_area->allocation.height;
+	/* drawing_area を描き換えるための expose event シグナルを発行する */
+	gtk_widget_draw(common_data->drawing_area, &update_rect);
+
+	/* タイトルを更新する */
 	sprintf(str, "万分計 - 残り秒数: %d", (int) (common_data->start_time + common_data->min * 60 - epoch_time));
 	gtk_window_set_title(GTK_WINDOW(common_data->window), str);
 
@@ -131,6 +175,7 @@ int main(int argc, char **argv)
 	GtkWidget *entry; /* テキスト入力用 (エントリー) ウィジェット */
 	GtkWidget *button; /* ボタンウィジェット */
 	GtkWidget *pbox; /* パッキングボックス */
+	GtkWidget *drawing_area; /* 描画領域 */
 	gint main_timer; /* タイマーの ID */
 	COMMON_DATA common_data; /* コールバック関数に渡すデータ */
 
@@ -182,10 +227,20 @@ int main(int argc, char **argv)
 	gtk_widget_hide(entry);
 	gtk_widget_hide(button);
 
+	/* 描画領域の作成 */
+	common_data.pixmap = NULL;
+	drawing_area = gtk_drawing_area_new();
+	gtk_drawing_area_size(GTK_DRAWING_AREA(drawing_area), SIZE_WINDOW_X, SIZE_WINDOW_Y);
+	gtk_box_pack_start(GTK_BOX(pbox), drawing_area, FALSE, FALSE, 0);
+	gtk_widget_show(drawing_area);
+	common_data.drawing_area = drawing_area;
+	g_signal_connect(G_OBJECT(drawing_area), "configure_event", (GtkSignalFunc) configure_event, &common_data);
+	g_signal_connect(G_OBJECT(drawing_area), "expose_event", (GtkSignalFunc) expose_event, &common_data);
+
 	/* タイマー設定・開始 */
 	main_timer = gtk_timeout_add(333, (GtkFunction) main_timer_event, &common_data);
 	common_data.start_time = time(NULL);
-	common_data.last_time = time(NULL);
+	common_data.last_time = time(NULL) - 1;
 
 	/* メインループ */
 	gtk_main();
