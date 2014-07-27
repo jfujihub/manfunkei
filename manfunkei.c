@@ -77,16 +77,16 @@ void input_entry_widget(GtkWidget *widget, gpointer data)
 }
 
 
-void draw_tic(cairo_t *cr, int hour, double size_circle, int fill)
+void draw_tic(cairo_t *cr, int hour, double size_circle, int fill, int size_window_x, int size_window_y)
 /* 表示盤の目盛りを描画する */
 {
 	double tic_radian, tic_x, tic_y;
 
 	tic_radian = 0.5 * M_PI - 2.0 * M_PI / 12.0 * hour;
-	tic_x = SIZE_WINDOW_X * 0.5 + cos(tic_radian) * SIZE_WINDOW_X * 0.4;
-	tic_y = SIZE_WINDOW_Y * 0.5 - sin(tic_radian) * SIZE_WINDOW_Y * 0.4;
-	cairo_move_to(cr, tic_x + SIZE_WINDOW_X * size_circle, tic_y);
-	cairo_arc(cr, tic_x, tic_y, SIZE_WINDOW_X * size_circle, 0.0, M_PI * 2.0);
+	tic_x = size_window_x * 0.5 + cos(tic_radian) * size_window_x * 0.4;
+	tic_y = size_window_y * 0.5 - sin(tic_radian) * size_window_y * 0.4;
+	cairo_move_to(cr, tic_x + size_window_x * size_circle, tic_y);
+	cairo_arc(cr, tic_x, tic_y, size_window_x * size_circle, 0.0, M_PI * 2.0);
 	if (fill) {
 		cairo_fill_preserve(cr);
 	}
@@ -97,6 +97,7 @@ gint main_timer_event(gpointer data)
 /* タイマーイベント発生時の処理を行う */
 {
 	char str[SIZE_STR];
+	int size_window_x, size_window_y;
 	double hand_radian, hand_x, hand_y;
 	time_t epoch_time;
 	COMMON_DATA *common_data = (COMMON_DATA *) data;
@@ -116,21 +117,25 @@ gint main_timer_event(gpointer data)
 	cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
 	cairo_paint(cr);
 
+	/* 画面サイズの取得 */
+	size_window_x = common_data->drawing_area->allocation.width;
+	size_window_y = common_data->drawing_area->allocation.height;
+
 	/* 目盛り (tic) */
 	cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
 	cairo_set_line_width(cr, 2);
-	draw_tic(cr, 0, 0.03, TRUE);
-	draw_tic(cr, 1, 0.01, FALSE);
-	draw_tic(cr, 2, 0.01, FALSE);
-	draw_tic(cr, 3, 0.03, FALSE);
-	draw_tic(cr, 4, 0.01, FALSE);
-	draw_tic(cr, 5, 0.01, FALSE);
-	draw_tic(cr, 6, 0.03, FALSE);
-	draw_tic(cr, 7, 0.01, FALSE);
-	draw_tic(cr, 8, 0.01, FALSE);
-	draw_tic(cr, 9, 0.03, FALSE);
-	draw_tic(cr, 10, 0.01, FALSE);
-	draw_tic(cr, 11, 0.01, FALSE);
+	draw_tic(cr, 0, 0.03, TRUE, size_window_x, size_window_y);
+	draw_tic(cr, 1, 0.01, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 2, 0.01, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 3, 0.03, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 4, 0.01, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 5, 0.01, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 6, 0.03, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 7, 0.01, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 8, 0.01, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 9, 0.03, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 10, 0.01, FALSE, size_window_x, size_window_y);
+	draw_tic(cr, 11, 0.01, FALSE, size_window_x, size_window_y);
 	cairo_stroke(cr);
 
 	/* 針 (hand) */
@@ -139,12 +144,12 @@ gint main_timer_event(gpointer data)
 		epoch_time = common_data->start_time + common_data->min * 60;
 	}
 	hand_radian = 0.5 * M_PI - (epoch_time - common_data->start_time) / (common_data->min * 60.0) * 2.0 * M_PI;
-	hand_x = SIZE_WINDOW_X * 0.5 + cos(hand_radian) * SIZE_WINDOW_X * 0.32;
-	hand_y = SIZE_WINDOW_Y * 0.5 - sin(hand_radian) * SIZE_WINDOW_Y * 0.32;
+	hand_x = size_window_x * 0.5 + cos(hand_radian) * size_window_x * 0.32;
+	hand_y = size_window_y * 0.5 - sin(hand_radian) * size_window_y * 0.32;
 	cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
 	cairo_set_line_width(cr, 3);
 	cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
-	cairo_move_to(cr, SIZE_WINDOW_X * 0.5, SIZE_WINDOW_Y * 0.5);
+	cairo_move_to(cr, size_window_x * 0.5, size_window_y * 0.5);
 	cairo_line_to(cr, hand_x, hand_y);
 	cairo_stroke(cr);
 
@@ -231,7 +236,7 @@ int main(int argc, char **argv)
 	common_data.pixmap = NULL;
 	drawing_area = gtk_drawing_area_new();
 	gtk_drawing_area_size(GTK_DRAWING_AREA(drawing_area), SIZE_WINDOW_X, SIZE_WINDOW_Y);
-	gtk_box_pack_start(GTK_BOX(pbox), drawing_area, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(pbox), drawing_area, TRUE, TRUE, 0);
 	gtk_widget_show(drawing_area);
 	common_data.drawing_area = drawing_area;
 	g_signal_connect(G_OBJECT(drawing_area), "configure_event", (GtkSignalFunc) configure_event, &common_data);
