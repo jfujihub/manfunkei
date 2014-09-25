@@ -194,6 +194,8 @@ int main(int argc, char **argv)
 	gtk_widget_set_size_request(window, SIZE_WINDOW_X, SIZE_WINDOW_Y);
 	/* メインウインドウのタイトルを設定する */
 	gtk_window_set_title(GTK_WINDOW(window), "万分計");
+	/* アプリケーションアイコンを設定する */
+	gtk_window_set_icon_from_file(GTK_WINDOW(common_data.window), "icon.png", NULL);
 
 	/* パッキングボックスの作成 */
 	pbox = gtk_vbox_new(FALSE, 3);
