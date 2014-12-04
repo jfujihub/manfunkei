@@ -10,10 +10,10 @@ manfunkei: $(OBJS)
 manfunkei.o: manfunkei.c icon.png
 	$(CC) -c $< $(CFLAGS)
 
-icon.png :
+icon.png:
 	convert -size 64x64 -background white -fill blue -gravity center -font /usr/share/fonts/truetype/fonts-japanese-gothic.ttf label:万分\\n計 icon.png
 
 
-clean :
+clean:
 	rm -f $(OBJS) icon.png
 

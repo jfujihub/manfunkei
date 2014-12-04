@@ -1,6 +1,7 @@
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <time.h>
 #include <math.h>
 
@@ -183,6 +184,8 @@ int main(int argc, char **argv)
 	GtkWidget *drawing_area; /* 描画領域 */
 	gint main_timer; /* タイマーの ID */
 	COMMON_DATA common_data; /* コールバック関数に渡すデータ */
+	char program_path[PATH_MAX]; /* プログラム実行ファイルへのフルパス */
+	char icon_path[PATH_MAX]; /* アプリケーションアイコンの画像ファイルへのフルパス */
 
 	/* GTK+ の初期化およびコマンドライン引数解析 */
 	gtk_init(&argc, &argv);
@@ -195,7 +198,9 @@ int main(int argc, char **argv)
 	/* メインウインドウのタイトルを設定する */
 	gtk_window_set_title(GTK_WINDOW(window), "万分計");
 	/* アプリケーションアイコンを設定する */
-	gtk_window_set_icon_from_file(GTK_WINDOW(common_data.window), "icon.png", NULL);
+	realpath(argv[0], program_path);
+	sprintf(icon_path, "%s/%s", dirname(program_path), "icon.png");
+	gtk_window_set_icon_from_file(GTK_WINDOW(common_data.window), icon_path, NULL);
 
 	/* パッキングボックスの作成 */
 	pbox = gtk_vbox_new(FALSE, 3);
